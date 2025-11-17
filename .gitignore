@@ -1,3 +1,5 @@
 .env
 /__pycache__
 /data
+/MSLesSeg_RAW
+/MSLesSeg_Dataset
