@@ -51,7 +51,7 @@ def datalist(data_dir: str) -> list[dict]:
         sub_key = subdirs(os.path.join(data_dir, k), prefix="T", join=False)
         sub_keys.append(sub_key)
 
-    views_sequences = ['FLAIR', 'T1', 'T2']
+    views_sequences = ['FLAIR']
 
     datalist = []
     for i, key in enumerate(keys):
@@ -90,7 +90,7 @@ def inspect_volume(filepath: str) -> None:
 
 
 def show_3d_views(
-    img: Tensor, mask: Tensor=None, slice_idx: Tuple[int, int, int]=None, title=""
+    img: Tensor, mask: Tensor=None, pred: Tensor=None, slice_idx: Tuple[int, int, int]=None, title=""
 ) -> None:
     """Plot a slice of a volume and the corresponding segmentations.
     Args:
@@ -99,11 +99,15 @@ def show_3d_views(
         slice_idx: (d, h, w). Default to None (center slice chosen).
         title: Plot's title.
     """
+    if pred is not None and mask is None:
+        raise ValueError("'mask' can not be set to None if a 'pred' was given.")
 
     # Convertir torch → numpy et enlever le channel
     img_np = img.squeeze().cpu().numpy()     # (D, H, W)
     if mask is not None:
         mask_np = mask.squeeze().cpu().numpy()
+    if pred is not None:
+        pred_np = pred.squeeze().cpu().numpy()
 
     D, H, W = img_np.shape
 
@@ -126,32 +130,87 @@ def show_3d_views(
     else:
         axial_mask = sagittal_mask = coronal_mask = None
 
-    plt.figure(figsize=(14, 6))
-    plt.suptitle(title, fontsize=16)
+    # Même pour la prediction :
+    if pred is not None:
+        axial_pred     = pred_np[d]
+        coronal_pred   = pred_np[:, h, :]
+        sagittal_pred  = pred_np[:, :, w]
+    else:
+        axial_pred = sagittal_pred = coronal_pred = None
 
-    # AXIAL
-    plt.subplot(1, 3, 1)
-    plt.imshow(axial_img, cmap="gray")
-    if mask is not None:
+
+    if pred is not None:
+        plt.figure(figsize=(14, 12))
+        plt.suptitle(title, fontsize=16)
+
+        # AXIAL
+        plt.subplot(2, 3, 1)
+        plt.imshow(axial_img, cmap="gray")
         plt.imshow(axial_mask, alpha=0.4, cmap="Reds")
-    plt.title(f"Axial (slice {d})")
-    plt.axis("off")
+        plt.title(f"Axial (slice {d}) with true mask")
+        plt.axis("off")
 
-    # CORONAL
-    plt.subplot(1, 3, 2)
-    plt.imshow(coronal_img.T, cmap="gray", origin="lower")
-    if mask is not None:
+        # CORONAL
+        plt.subplot(2, 3, 2)
+        plt.imshow(coronal_img.T, cmap="gray", origin="lower")
         plt.imshow(coronal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
-    plt.title(f"Coronal (slice {h})")
-    plt.axis("off")
+        plt.title(f"Coronal (slice {h}) with true mask")
+        plt.axis("off")
 
-    # SAGITTAL
-    plt.subplot(1, 3, 3)
-    plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
-    if mask is not None:
+        # SAGITTAL
+        plt.subplot(2, 3, 3)
+        plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
         plt.imshow(sagittal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
-    plt.title(f"Sagittal (slice {w})")
-    plt.axis("off")
+        plt.title(f"Sagittal (slice {w}) with true mask")
+        plt.axis("off")
+
+        # AXIAL
+        plt.subplot(2, 3, 4)
+        plt.imshow(axial_img, cmap="gray")
+        plt.imshow(axial_pred, alpha=0.4, cmap="Reds")
+        plt.title(f"Axial (slice {d}) with predicted mask")
+        plt.axis("off")
+
+        # CORONAL
+        plt.subplot(2, 3, 5)
+        plt.imshow(coronal_img.T, cmap="gray", origin="lower")
+        plt.imshow(coronal_pred.T, alpha=0.4, cmap="Reds", origin="lower")
+        plt.title(f"Coronal (slice {h}) with predicted mask")
+        plt.axis("off")
+
+        # SAGITTAL
+        plt.subplot(2, 3, 6)
+        plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
+        plt.imshow(sagittal_pred.T, alpha=0.4, cmap="Reds", origin="lower")
+        plt.title(f"Sagittal (slice {w}) with predicted mask")
+        plt.axis("off")
+    else:
+        plt.figure(figsize=(14, 6))
+        plt.suptitle(title, fontsize=16)
+
+        # AXIAL
+        plt.subplot(1, 3, 1)
+        plt.imshow(axial_img, cmap="gray")
+        if mask is not None:
+            plt.imshow(axial_mask, alpha=0.4, cmap="Reds")
+        plt.title(f"Axial (slice {d})")
+        plt.axis("off")
+
+        # CORONAL
+        plt.subplot(1, 3, 2)
+        plt.imshow(coronal_img.T, cmap="gray", origin="lower")
+        if mask is not None:
+            plt.imshow(coronal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
+        plt.title(f"Coronal (slice {h})")
+        plt.axis("off")
+
+        # SAGITTAL
+        plt.subplot(1, 3, 3)
+        plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
+        if mask is not None:
+            plt.imshow(sagittal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
+        plt.title(f"Sagittal (slice {w})")
+        plt.axis("off")
 
     plt.tight_layout()
     plt.show()
