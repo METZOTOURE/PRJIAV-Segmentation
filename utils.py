@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 from torch import Tensor
 from typing import Tuple
+import numpy as np
 
 def subdirs(
     folder: str, join: bool = True, prefix: str = None, suffix: str = None, sort: bool = True
@@ -90,127 +91,98 @@ def inspect_volume(filepath: str) -> None:
 
 
 def show_3d_views(
-    img: Tensor, mask: Tensor=None, pred: Tensor=None, slice_idx: Tuple[int, int, int]=None, title=""
+    img: Tensor, 
+    mask: Tensor = None, 
+    pred: Tensor = None, 
+    slice_idx: Tuple[int, int, int] = None, 
+    title: str = ""
 ) -> None:
     """Plot a slice of a volume and the corresponding segmentations.
     Args:
         img: Tensor (1, D, H, W). Volume.
         mask: Tensor (1, D, H, W). Segmentation mask. Default to None.
+        pred: Tensor (1, D, H, W). Segmentation prediction mask. Default to None.
         slice_idx: (d, h, w). Default to None (center slice chosen).
         title: Plot's title.
     """
-    if pred is not None and mask is None:
-        raise ValueError("'mask' can not be set to None if a 'pred' was given.")
 
-    # Convertir torch → numpy et enlever le channel
-    img_np = img.squeeze().cpu().numpy()     # (D, H, W)
-    if mask is not None:
-        mask_np = mask.squeeze().cpu().numpy()
-    if pred is not None:
-        pred_np = pred.squeeze().cpu().numpy()
+    if pred is not None and mask is None:
+        raise ValueError("'mask' cannot be None if 'pred' is provided.")
+
+    img_np = img.squeeze().cpu().numpy()          # (D, H, W)
+    mask_np = mask.squeeze().cpu().numpy() if mask is not None else None
+    pred_np = pred.squeeze().cpu().numpy() if pred is not None else None
 
     D, H, W = img_np.shape
 
-    # Définir les indices de coupe
+    # --- Slice indices ---
     if slice_idx is None:
         slice_idx = (D // 2, H // 2, W // 2)
 
     d, h, w = slice_idx
 
-    # Préparer les trois vues :
-    axial_img     = img_np[d]          # (H, W)
-    sagittal_img  = img_np[:, :, w]    # (D, H)
-    coronal_img   = img_np[:, h, :]    # (D, W)
+    # --- Extract the 3 views ---
+    views = {
+        "Axial":     (img_np[d],            mask_np[d] if mask_np is not None else None,
+                                      pred_np[d] if pred_np is not None else None),
+        "Coronal":   (img_np[:, h, :],      mask_np[:, h, :] if mask_np is not None else None,
+                                      pred_np[:, h, :] if pred_np is not None else None),
+        "Sagittal":  (img_np[:, :, w],      mask_np[:, :, w] if mask_np is not None else None,
+                                      pred_np[:, :, w] if pred_np is not None else None),
+    }
 
-    # Même pour le masque :
-    if mask is not None:
-        axial_mask     = mask_np[d]
-        coronal_mask   = mask_np[:, h, :]
-        sagittal_mask  = mask_np[:, :, w]
-    else:
-        axial_mask = sagittal_mask = coronal_mask = None
-
-    # Même pour la prediction :
+    # --- Define layout ---
     if pred is not None:
-        axial_pred     = pred_np[d]
-        coronal_pred   = pred_np[:, h, :]
-        sagittal_pred  = pred_np[:, :, w]
+        rows, cols = 2, 3
     else:
-        axial_pred = sagittal_pred = coronal_pred = None
+        rows, cols = 1, 3
 
+    plt.figure(figsize=(14, 6 if pred is None else 12))
+    plt.suptitle(title, fontsize=16)
 
-    if pred is not None:
-        plt.figure(figsize=(14, 12))
-        plt.suptitle(title, fontsize=16)
+    # --- Plot loop ---
+    for i, (name, (img_view, mask_view, pred_view)) in enumerate(views.items()):
+        # First row → ground truth (mask)
+        ax = plt.subplot(rows, cols, i + 1)
+        oriented_img = np.rot90(img_view.T, k=1) if name != "Sagittal" else np.rot90(img_view, k=2)
+        plt.imshow(oriented_img, cmap="gray")
 
-        # AXIAL
-        plt.subplot(2, 3, 1)
-        plt.imshow(axial_img, cmap="gray")
-        plt.imshow(axial_mask, alpha=0.4, cmap="Reds")
-        plt.title(f"Axial (slice {d}) with true mask")
+        if mask_view is not None:
+            oriented_mask = np.rot90(mask_view.T, k=1) if name != "Sagittal" else np.rot90(mask_view, k=2)
+            plt.imshow(oriented_mask, cmap="Reds", alpha=0.4)
+
+        plt.title(f"{name} (slice {slice_idx[i]})")
         plt.axis("off")
 
-        # CORONAL
-        plt.subplot(2, 3, 2)
-        plt.imshow(coronal_img.T, cmap="gray", origin="lower")
-        plt.imshow(coronal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
-        plt.title(f"Coronal (slice {h}) with true mask")
-        plt.axis("off")
+        # Second row → prediction
+        if pred is not None:
+            ax = plt.subplot(rows, cols, i + 1 + cols)
+            plt.imshow(oriented_img, cmap="gray")
 
-        # SAGITTAL
-        plt.subplot(2, 3, 3)
-        plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
-        plt.imshow(sagittal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
-        plt.title(f"Sagittal (slice {w}) with true mask")
-        plt.axis("off")
+            if pred_view is not None:
+                oriented_pred = np.rot90(pred_view.T, k=1) if name != "Sagittal" else np.rot90(pred_view, k=2)
+                plt.imshow(oriented_pred, cmap="Reds", alpha=0.4)
 
-        # AXIAL
-        plt.subplot(2, 3, 4)
-        plt.imshow(axial_img, cmap="gray")
-        plt.imshow(axial_pred, alpha=0.4, cmap="Reds")
-        plt.title(f"Axial (slice {d}) with predicted mask")
-        plt.axis("off")
-
-        # CORONAL
-        plt.subplot(2, 3, 5)
-        plt.imshow(coronal_img.T, cmap="gray", origin="lower")
-        plt.imshow(coronal_pred.T, alpha=0.4, cmap="Reds", origin="lower")
-        plt.title(f"Coronal (slice {h}) with predicted mask")
-        plt.axis("off")
-
-        # SAGITTAL
-        plt.subplot(2, 3, 6)
-        plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
-        plt.imshow(sagittal_pred.T, alpha=0.4, cmap="Reds", origin="lower")
-        plt.title(f"Sagittal (slice {w}) with predicted mask")
-        plt.axis("off")
-    else:
-        plt.figure(figsize=(14, 6))
-        plt.suptitle(title, fontsize=16)
-
-        # AXIAL
-        plt.subplot(1, 3, 1)
-        plt.imshow(axial_img, cmap="gray")
-        if mask is not None:
-            plt.imshow(axial_mask, alpha=0.4, cmap="Reds")
-        plt.title(f"Axial (slice {d})")
-        plt.axis("off")
-
-        # CORONAL
-        plt.subplot(1, 3, 2)
-        plt.imshow(coronal_img.T, cmap="gray", origin="lower")
-        if mask is not None:
-            plt.imshow(coronal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
-        plt.title(f"Coronal (slice {h})")
-        plt.axis("off")
-
-        # SAGITTAL
-        plt.subplot(1, 3, 3)
-        plt.imshow(sagittal_img.T, cmap="gray", origin="lower")
-        if mask is not None:
-            plt.imshow(sagittal_mask.T, alpha=0.4, cmap="Reds", origin="lower")
-        plt.title(f"Sagittal (slice {w})")
-        plt.axis("off")
+            plt.title(f"{name} prediction")
+            plt.axis("off")
 
     plt.tight_layout()
     plt.show()
+
+
+def MSLesSeg_to_MSSEG(ref_path: str, img_path: str, out_path: str):
+
+    ref = sitk.ReadImage(ref_path)
+    img = sitk.ReadImage(img_path)
+
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetReferenceImage(ref)
+    resampler.SetInterpolator(sitk.sitkLinear)
+    resampler.SetOutputPixelType(img.GetPixelID())
+
+    img_matched = resampler.Execute(img)
+
+
+    sitk.WriteImage(img_matched, out_path)
+
+    print("Corrected image saved in :", out_path)
