@@ -5,7 +5,8 @@ from pathlib import Path
 
 # ----- CONFIG -----
 SOURCE_DIR = Path(os.getenv("PREPROCESSED_DATA_DIR", "MSLesSeg_Dataset"))
-TARGET_DIR = Path("nnUNet_raw/Dataset001_MSLesSeg")
+# Changer le TARGET_DIR vers un disque avec plus d'espace (D:\, E:\, etc.)
+TARGET_DIR = Path("D:/nnUNet_raw/Dataset001_MSLesSeg")  # Ou E:\, F:\, etc.
 
 TRAIN_DIR = Path(os.getenv("TRAIN_DATA_DIR", "MSLesSeg_Dataset/train"))
 TEST_DIR = Path(os.getenv("TEST_DATA_DIR", "MSLesSeg_Dataset/test"))
@@ -119,8 +120,8 @@ dataset_json = {
         "2": "T2"
     },
     "labels": {
-        "0": "background",
-        "1": "lesion"
+        "background": 0,
+        "lesion": 1
     },
     "numTraining": len(list(LABELS_TR.glob("*.nii.gz"))),
     "numTest": len(list(IMAGES_TS.glob("*_0000.nii.gz"))),
