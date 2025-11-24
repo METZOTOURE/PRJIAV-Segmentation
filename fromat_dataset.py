@@ -4,8 +4,11 @@ import json
 from pathlib import Path
 
 # ----- CONFIG -----
-SOURCE_DIR = Path("MSLesSeg_Dataset")  
+SOURCE_DIR = Path(os.getenv("PREPROCESSED_DATA_DIR", "MSLesSeg_Dataset"))
 TARGET_DIR = Path("nnUNet_raw/Dataset001_MSLesSeg")
+
+TRAIN_DIR = Path(os.getenv("TRAIN_DATA_DIR", "MSLesSeg_Dataset/train"))
+TEST_DIR = Path(os.getenv("TEST_DATA_DIR", "MSLesSeg_Dataset/test"))
 
 IMAGES_TR = TARGET_DIR / "imagesTr"
 LABELS_TR = TARGET_DIR / "labelsTr"
@@ -40,9 +43,7 @@ def detect_modality(filename: str):
 
 
 # ----- DATASET CONVERSION -----
-def convert_split(split_name, is_training=True):
-    split_dir = SOURCE_DIR / split_name
-
+def convert_split(split_dir, is_training=True):
     for patient_dir in sorted(split_dir.iterdir()):
         if not patient_dir.is_dir():
             continue
@@ -50,60 +51,69 @@ def convert_split(split_name, is_training=True):
         patient_id = patient_dir.name
         print(f"\nProcessing {patient_id} ...")
 
-        # TRAIN uses timepoint T1/
+        # TRAIN: Process all timepoints T1, T2, T3, T4
         if is_training:
-            src = patient_dir / "T1"
-            if not src.exists():
-                print(f"⚠️ No T1 folder for {patient_id}, skipping.")
-                continue
+            timepoints = ["T1", "T2", "T3", "T4"]
+            
+            for timepoint in timepoints:
+                src = patient_dir / timepoint
+                
+                if not src.exists():
+                    print(f"⚠️ No {timepoint} folder for {patient_id}, skipping {timepoint}.")
+                    continue
 
-        # TEST uses files directly in Pxx/
+                # detect files
+                flair = t1 = t2 = mask = None
+
+                for f in src.glob("*.nii.gz"):
+                    mod = detect_modality(f.name)
+                    if mod == "FLAIR":
+                        flair = f
+                    elif mod == "T1":
+                        t1 = f
+                    elif mod == "T2":
+                        t2 = f
+                    elif mod == "MASK":
+                        mask = f
+
+                if mask is None:
+                    print(f"⚠️ No MASK found for {patient_id}/{timepoint}, skipping.")
+                    continue
+
+                if flair: shutil.copy(flair, IMAGES_TR / f"{patient_id}_{timepoint}_0000.nii.gz")
+                if t1: shutil.copy(t1, IMAGES_TR / f"{patient_id}_{timepoint}_0001.nii.gz")
+                if t2: shutil.copy(t2, IMAGES_TR / f"{patient_id}_{timepoint}_0002.nii.gz")
+                shutil.copy(mask, LABELS_TR / f"{patient_id}_{timepoint}.nii.gz")
+
+        # TEST: Files directly in patient folder (no timepoint subfolders)
         else:
             src = patient_dir
+            
+            # detect files
+            flair = t1 = t2 = None
 
-        # detect files
-        flair = t1 = t2 = mask = None
+            for f in src.glob("*.nii.gz"):
+                mod = detect_modality(f.name)
+                if mod == "FLAIR":
+                    flair = f
+                elif mod == "T1":
+                    t1 = f
+                elif mod == "T2":
+                    t2 = f
 
-        for f in src.glob("*.nii.gz"):
-            mod = detect_modality(f.name)
-            if mod == "FLAIR":
-                flair = f
-            elif mod == "T1":
-                t1 = f
-            elif mod == "T2":
-                t2 = f
-            elif mod == "MASK":
-                mask = f
-
-        # -------- TRAIN --------
-        if is_training:
-            if mask is None:
-                print(f"⚠️ No MASK found for {patient_id}, skipping.")
-                continue
-
-            if flair: shutil.copy(flair, IMAGES_TR / f"{patient_id}_0000.nii.gz")
-            if t1: shutil.copy(t1, IMAGES_TR / f"{patient_id}_0001.nii.gz")
-            if t2: shutil.copy(t2, IMAGES_TR / f"{patient_id}_0002.nii.gz")
-            shutil.copy(mask, LABELS_TR / f"{patient_id}.nii.gz")
-
-        # -------- TEST --------
-        else:
-            # test has NO masks
+            # Copy with simple patient ID (no timepoint suffix for test)
             if flair: shutil.copy(flair, IMAGES_TS / f"{patient_id}_0000.nii.gz")
             if t1: shutil.copy(t1, IMAGES_TS / f"{patient_id}_0001.nii.gz")
             if t2: shutil.copy(t2, IMAGES_TS / f"{patient_id}_0002.nii.gz")
 
 
 # ----- EXECUTION -----
-convert_split("train", True)
-convert_split("test", False)
+convert_split(TRAIN_DIR, True)
+convert_split(TEST_DIR, False)
 
 # ----- dataset.json -----
 dataset_json = {
-    "name": "MSLesSeg",
-    "description": "MS lesion dataset using only timepoint T1 and all modalities",
-    "tensorImageSize": "4D",
-    "modality": {
+    "channel_names": {
         "0": "FLAIR",
         "1": "T1",
         "2": "T2"
