@@ -1,11 +1,13 @@
 import os
 import shutil
 import json
+from dotenv import load_dotenv
 from pathlib import Path
 
 # ----- CONFIG -----
+load_dotenv()
 SOURCE_DIR = Path(os.getenv("PREPROCESSED_DATA_DIR", "MSLesSeg_Dataset"))
-TARGET_DIR = Path("nnUNet_raw/Dataset001_MSLesSeg")
+TARGET_DIR = Path("Dataset001_MSLesSeg")
 
 TRAIN_DIR = Path(os.getenv("TRAIN_DATA_DIR", "MSLesSeg_Dataset/train"))
 TEST_DIR = Path(os.getenv("TEST_DATA_DIR", "MSLesSeg_Dataset/test"))
