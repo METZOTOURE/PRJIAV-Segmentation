@@ -1,4 +1,5 @@
 .env
+*.nii.gz
 /__pycache__
 /data
 /MSLesSeg_RAW
