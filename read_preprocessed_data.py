@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+from dotenv import load_dotenv
 from pathlib import Path
 
 # Si vous avez des fichiers .b2nd (nnU-Net v2.6+)
@@ -13,12 +14,13 @@ except ImportError:
     print("   Installez avec: pip install blosc2")
 
 # Configuration
+load_dotenv()
 preprocessed_dir = Path(os.getenv("nnUNet_preprocessed", "D:/nnUNet_preprocessed"))
-dataset_name = "Dataset001_MSLesSeg"
-configuration = "3d_fullres"  # ou "2d", "3d_lowres"
+dataset_name = "Dataset002_MSLesSeg_FLAIR"
+configuration = "2d"  # ou "2d", "3d_lowres"
 
 # Chemin vers les données
-data_path = preprocessed_dir / dataset_name / f"nnUNetPlans_3d_fullres"
+data_path = preprocessed_dir / dataset_name / f"nnUNetPlans_{configuration}"
 
 print("=" * 70)
 print("LECTURE DES DONNEES PREPROCESSEES nnU-Net")

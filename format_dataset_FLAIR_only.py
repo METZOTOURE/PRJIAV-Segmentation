@@ -1,9 +1,11 @@
 import os
 import shutil
 import json
+from dotenv import load_dotenv
 from pathlib import Path
 
 # ----- CONFIG -----
+load_dotenv()
 SOURCE_DIR = Path(os.getenv("PREPROCESSED_DATA_DIR", "MSLesSeg_Dataset"))
 # Changer le TARGET_DIR vers un disque avec plus d'espace (D:\, E:\, etc.)
 TARGET_DIR = Path("D:/nnUNet_raw/Dataset002_MSLesSeg_FLAIR")  # Dataset002 pour FLAIR seul
