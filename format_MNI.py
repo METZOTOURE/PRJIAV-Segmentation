@@ -2,10 +2,13 @@ import shutil
 import json
 from pathlib import Path
 import random
+import os
+from dotenv import load_dotenv
 
 # ----- CONFIG -----
-SOURCE_DIR = Path("MNI")  # Dossier contenant les patients (patient09, etc.)
-TARGET_DIR = Path("nnUNet_raw/Dataset003_MNI")
+load_dotenv()
+SOURCE_DIR = Path(os.getenv("MNI_DATASET","MNI"))  # Dossier contenant les patients (patient09, etc.)
+TARGET_DIR = Path("Dataset003_MNI")
 
 IMAGES_TR = TARGET_DIR / "imagesTr"
 LABELS_TR = TARGET_DIR / "labelsTr"
@@ -44,9 +47,10 @@ for patient_dir in sorted(SOURCE_DIR.iterdir()):
             continue
         
         filename_upper = f.name.upper()
-        
-        if "FLAIR" in filename_upper and not f.name.startswith("_"):
+
+        if f.name.startswith("FLAIR"):
             flair_file = f
+            print(f.name)
         
         if "GOLD_STANDARD" in filename_upper and not f.name.startswith("_"):
             gold_file = f
