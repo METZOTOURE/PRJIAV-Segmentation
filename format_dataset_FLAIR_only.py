@@ -8,7 +8,7 @@ from pathlib import Path
 load_dotenv()
 SOURCE_DIR = Path(os.getenv("PREPROCESSED_DATA_DIR", "MSLesSeg_Dataset"))
 # Changer le TARGET_DIR vers un disque avec plus d'espace (D:\, E:\, etc.)
-TARGET_DIR = Path("D:/nnUNet_raw/Dataset002_MSLesSeg_FLAIR")  # Dataset002 pour FLAIR seul
+TARGET_DIR = Path("Dataset002_MSLesSeg_FLAIR")  # Dataset002 pour FLAIR seul
 
 TRAIN_DIR = Path(os.getenv("TRAIN_DATA_DIR", "MSLesSeg_Dataset/train"))
 TEST_DIR = Path(os.getenv("TEST_DATA_DIR", "MSLesSeg_Dataset/test"))
@@ -16,9 +16,10 @@ TEST_DIR = Path(os.getenv("TEST_DATA_DIR", "MSLesSeg_Dataset/test"))
 IMAGES_TR = TARGET_DIR / "imagesTr"
 LABELS_TR = TARGET_DIR / "labelsTr"
 IMAGES_TS = TARGET_DIR / "imagesTs"
+LABELS_TS = TARGET_DIR / "labelsTs"
 
 # Clean target folders
-for d in [IMAGES_TR, LABELS_TR, IMAGES_TS]:
+for d in [IMAGES_TR, LABELS_TR, IMAGES_TS, LABELS_TS]:
     if d.exists():
         shutil.rmtree(d)
     d.mkdir(parents=True, exist_ok=True)
@@ -92,18 +93,26 @@ def convert_split(split_dir, is_training=True):
             src = patient_dir
             
             # detect files
-            flair = None
+            flair = mask = None
 
             for f in src.glob("*.nii.gz"):
                 mod = detect_modality(f.name)
                 if mod == "FLAIR":
                     flair = f
+                elif mod == "MASK":
+                        mask = f
+
+            if mask is None:
+                print(f"⚠️ No MASK found for {patient_id}, skipping.")
+                continue
+
+            if flair is None:
+                print(f"⚠️ No FLAIR found for {patient_id}, skipping.")
+                continue
 
             # Copier uniquement FLAIR pour le test
-            if flair:
-                shutil.copy(flair, IMAGES_TS / f"{patient_id}_0000.nii.gz")
-            else:
-                print(f"⚠️ No FLAIR found for {patient_id}, skipping.")
+            shutil.copy(flair, IMAGES_TS / f"{patient_id}_0000.nii.gz")
+            shutil.copy(mask, LABELS_TS / f"{patient_id}.nii.gz")
 
 
 # ----- EXECUTION -----
