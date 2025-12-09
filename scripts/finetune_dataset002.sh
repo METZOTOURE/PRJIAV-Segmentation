@@ -115,17 +115,13 @@ for fold in $FOLDS_TO_TRAIN; do
         echo "  ⚠ Checkpoint non trouvé pour fold $fold: $CHECKPOINT"
         echo "  → Entraînement depuis zéro pour ce fold"
         nnUNetv2_train 002 3d_fullres $fold \
-            -tr nnUNetTrainerResEncUNetL \
             -p nnUNetResEncUNetLPlans \
-            --num_epochs $NUM_EPOCHS \
             --npz
     else
         echo "  ✓ Utilisation du checkpoint: $CHECKPOINT"
         nnUNetv2_train 002 3d_fullres $fold \
-            -tr nnUNetTrainerResEncUNetL \
             -p nnUNetResEncUNetLPlans \
             -pretrained_weights "$CHECKPOINT" \
-            --num_epochs $NUM_EPOCHS \
             --npz
     fi
 
