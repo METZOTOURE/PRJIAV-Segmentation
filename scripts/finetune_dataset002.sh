@@ -79,13 +79,13 @@ if [ -f "$nnUNet_preprocessed/Dataset002_MSLesSeg_FLAIR/nnUNetResEncUNetLPlans.j
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         echo "  Lancement du prétraitement avec ResEncL..."
-        nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL --verify_dataset_integrity
+        nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL -c 3d_fullres --verify_dataset_integrity
     else
         echo "  Prétraitement existant conservé."
     fi
 else
     echo "  Lancement du prétraitement avec ResEncL..."
-    nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL --verify_dataset_integrity
+    nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL -c 3d_fullres --verify_dataset_integrity
 fi
 
 # 4. Fine-tuning avec transfer learning (ResEncL + poids de Dataset004)
