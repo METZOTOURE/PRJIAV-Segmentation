@@ -1,46 +1,73 @@
 import json
-from dotenv import load_dotenv
-import os
+import pandas as pd
+from pathlib import Path
+from collections import defaultdict
 
-def compute_extra_metrics(TP, FP, FN):
-    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
-    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
-    return precision, recall, f1
+# Paramètres
+FOLD_ID = 4
+JSON_PATH = f"C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_inference/inference_before_finetuning/output_inference_MSLesSeg_Tr_per_fold/fold_{FOLD_ID}/summary.json"
+CSV_PATH = "evaluation_results/MSLesSeg_full/full_evaluation_results.csv"
+OUTPUT_JSON = f"C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_inference/inference_before_finetuning/output_inference_MSLesSeg_Tr_per_fold/fold_{FOLD_ID}/summary_completed.json"
 
-
-def complete_summary_json(summary_path, output_path):
-    with open(summary_path) as f:
-        data = json.load(f)
-
-    fg = data["foreground_mean"]
-    precision, recall, f1 = compute_extra_metrics(fg["TP"], fg["FP"], fg["FN"])
-
-    fg["precision"] = precision
-    fg["recall"] = recall
-    fg["f1"] = f1
-
-    for cls, metrics in data["mean"].items():
-        precision, recall, f1 = compute_extra_metrics(metrics["TP"], metrics["FP"], metrics["FN"])
-        metrics["precision"] = precision
-        metrics["recall"] = recall
-        metrics["f1"] = f1
-
-    for case in data["metric_per_case"]:
-        for cls, metrics in case["metrics"].items():
-            precision, recall, f1 = compute_extra_metrics(metrics["TP"], metrics["FP"], metrics["FN"])
-            metrics["precision"] = precision
-            metrics["recall"] = recall
-            metrics["f1"] = f1
-
-    with open(output_path, "w") as f:
-        json.dump(data, f, indent=4)
+LABEL_KEY = "1"  # classe de segmentation
 
 
-if __name__ == "__main__":
-    load_dotenv()
-    summary_path = os.getenv("SUMMARY_FILE")
-    output_path = os.path.join(os.path.dirname(summary_path), "summary_completed.json")
+# Chargement des fichiers
+with open(JSON_PATH, "r") as f:
+    summary = json.load(f)
 
-    complete_summary_json(summary_path, output_path)
-    print(f"summary.json completed\n    saved in {output_path}")
+df = pd.read_csv(CSV_PATH)
+df_fold = df[df["fold"] == FOLD_ID]
+
+# Indexation rapide par patient
+df_fold = df_fold.set_index("case_id")
+
+
+# Complétion des métriques par images
+all_metrics_values = defaultdict(list)
+
+for case in summary["metric_per_case"]:
+    pred_path = Path(case["prediction_file"])
+    patient_id = pred_path.stem.replace(".nii", "")
+
+    if patient_id not in df_fold.index:
+        continue  # sécurité : on ne crée aucune nouvelle image
+
+    csv_row = df_fold.loc[patient_id]
+
+    case_metrics = case["metrics"].setdefault(LABEL_KEY, {})
+
+    for csv_key, json_key in {
+        "dice": "Dice",
+        "iou": "IoU",
+        "lesion_f1": "lesion_f1",
+        "lesion_precision": "lesion_precision",
+        "lesion_recall": "lesion_recall",
+        "hd95": "HD95",
+        "assd": "ASSD",
+    }.items():
+
+        if json_key not in case_metrics and pd.notna(csv_row[csv_key]):
+            case_metrics[json_key] = float(csv_row[csv_key])
+
+    # Collecte pour le recalcul global
+    for k, v in case_metrics.items():
+        if isinstance(v, (int, float)):
+            all_metrics_values[k].append(v)
+
+
+# Recalcul des métriques globales
+def compute_mean(metrics_dict):
+    return {k: sum(v) / len(v) for k, v in metrics_dict.items() if len(v) > 0}
+
+mean_metrics = compute_mean(all_metrics_values)
+
+summary["mean"][LABEL_KEY] = mean_metrics
+summary["foreground_mean"] = mean_metrics.copy()
+
+
+# Sauvegarde
+with open(OUTPUT_JSON, "w") as f:
+    json.dump(summary, f, indent=4)
+
+print(f"✅ JSON complété et sauvegardé dans : {OUTPUT_JSON}")
