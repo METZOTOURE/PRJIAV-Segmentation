@@ -1,6 +1,7 @@
 # PRJIAV-Segmentation
 
 Projet de segmentation de lésions de sclérose en plaques (MS) utilisant nnU-Net.
+
 Lien vers le git de nnU-Net : https://github.com/MIC-DKFZ/nnUNet
 
 ## 📋 Prérequis
