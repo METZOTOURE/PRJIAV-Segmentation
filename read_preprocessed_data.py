@@ -15,7 +15,7 @@ except ImportError:
 
 # Configuration
 load_dotenv()
-preprocessed_dir = Path(os.getenv("nnUNet_preprocessed", "D:/nnUNet_preprocessed"))
+preprocessed_dir = Path(os.getenv("nnUNet_preprocessed"))
 dataset_name = "Dataset002_MSLesSeg_FLAIR"
 configuration = "2d"  # ou "2d", "3d_lowres"
 
