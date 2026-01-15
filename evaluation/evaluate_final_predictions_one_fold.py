@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 import nibabel as nib
 import numpy as np
 import math
@@ -10,8 +11,10 @@ from nibabel.processing import resample_from_to
 
 # --- CHEMINS À ADAPTER ---
 # Assurez-vous que ces chemins sont corrects pour votre environnement
-gt_dir = "C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_raw_data_base/Dataset003_MNI/labelsTs"
-pred_dir = "C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_inference/inference_before_finetuning/output_inference_MNI_Ts_per_fold/fold_0"
+load_dotenv()
+fold_id = 0
+gt_dir = os.getenv("GT_PATH")
+pred_dir = os.getenv("PREDICTIONS_PATH") + f"/fold_{fold_id}"
 # --- FIN DE LA CONFIGURATION ---
 
 def load_nifti_image(path):

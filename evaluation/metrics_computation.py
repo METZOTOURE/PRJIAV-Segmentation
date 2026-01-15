@@ -1,10 +1,13 @@
+import os
+from dotenv import load_dotenv
 import numpy as np
 import pandas as pd
 import math
 from pathlib import Path
 
-results_file = Path("./evaluation_results/MNI_ft/full_evaluation_results.csv")
-results_df = pd.read_csv(results_file)
+load_dotenv()
+csv_file = Path(os.getenv("OUTPUT_PATH")) / "full_evaluation_results.csv"
+results_df = pd.read_csv(csv_file)
 
 print("\n\n--- Moyennes par Fold ---")
 numeric_cols = results_df.select_dtypes(include=np.number).columns.drop(['fold'], errors='ignore')

@@ -1,5 +1,6 @@
 import os
 import glob
+from dotenv import load_dotenv
 import nibabel as nib
 import numpy as np
 import pandas as pd
@@ -7,9 +8,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-csv_path = Path("./evaluation_results/MSLesSeg_full/full_evaluation_results.csv")
-output_dir = Path("./evaluation_results/MSLesSeg_full")
-
+load_dotenv()
+output_dir = Path(os.getenv("OUTPUT_PATH"))
+csv_path = output_dir / "full_evaluation_results.csv"
+dataset = 'MSLesSeg_IAMB2026'
 
 def generate_and_save_boxplots(results_df, output_plot_dir):
     """Génère et sauvegarde des boîtes à moustaches pour chaque métrique, comparant les folds."""
@@ -37,7 +39,7 @@ def generate_and_save_boxplots(results_df, output_plot_dir):
         plt.ylabel(f"Valeur de {metric.upper()}", fontsize=12)
         plt.grid(True, linestyle='--', alpha=0.6)
 
-        plt.savefig(output_plot_dir / f"boxplot_{metric}_MSLesSeg_IAMB2026.png", bbox_inches='tight', dpi=150)
+        plt.savefig(output_plot_dir / f"boxplot_{metric}_{dataset}.png", bbox_inches='tight', dpi=150)
         plt.close()
         print(f"  Graphique pour '{metric}' sauvegardé.")
 

@@ -1,6 +1,7 @@
 import os
 import glob
 import re
+from dotenv import load_dotenv
 import nibabel as nib
 import numpy as np
 import math
@@ -12,10 +13,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-
-gt_base_dir = Path("C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_raw_data_base/Dataset002_MSLesSeg_FLAIR/labelsTs")
-predictions_base_dir = Path("C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_inference/inference_before_finetuning/output_inference_MSLesSeg_Ts_per_fold")
-output_dir = Path("./evaluation_results/MSLesSeg_Ts")
+load_dotenv()
+gt_base_dir = Path(os.getenv("GT_PATH"))
+predictions_base_dir = Path(os.getenv("PREDICTIONS_PATH"))
+output_dir = Path(os.getenv("OUTPUT_PATH"))
 
 
 def get_surface_distances(gt_bin, pred_bin, voxel_spacing=None):

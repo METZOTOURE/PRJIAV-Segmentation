@@ -1,13 +1,16 @@
+import os
+from dotenv import load_dotenv
 import json
 import pandas as pd
 from pathlib import Path
 from collections import defaultdict
 
 # Paramètres
+load_dotenv()
 FOLD_ID = 4
-JSON_PATH = f"C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_inference/inference_before_finetuning/output_inference_MSLesSeg_Tr_per_fold/fold_{FOLD_ID}/summary.json"
-CSV_PATH = "evaluation_results/MSLesSeg_full/full_evaluation_results.csv"
-OUTPUT_JSON = f"C:/Users/agmau/OneDrive/Documents/INSA_Lyon/5A/PRJIAV/work_dir/nnUNet_inference/inference_before_finetuning/output_inference_MSLesSeg_Tr_per_fold/fold_{FOLD_ID}/summary_completed.json"
+JSON_PATH = os.getenv("PREDICTIONS_PATH") + f"/fold_{FOLD_ID}/summary.json"
+CSV_PATH = os.getenv("OUTPUT_PATH") + "/full_evaluation_results.csv"
+OUTPUT_JSON = os.getenv("PREDICTIONS_PATH") + f"/fold_{FOLD_ID}/summary_completed.json"
 
 LABEL_KEY = "1"  # classe de segmentation
 
