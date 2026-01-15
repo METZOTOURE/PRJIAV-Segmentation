@@ -93,7 +93,20 @@ Ce dossier contient tout le code nécessaire au formatage des données pour ensu
 
 ### 5. Dossier `scripts`
 
-à compléter
+scripts/                      # Scripts d'entraînement et d'inférence
+ ├── finetune_dataset002.sh        # Script principal de fine-tuning
+   ├── sbatch_finetune_dataset002.sh # Version batch pour SLURM
+   └── run_nnunet_train_safe.sh      # Wrapper avec config MesoNET
+
+Script à lancer pour le finetuning : scripts/finetune_dataset002.sh
+Variables d'environnement à définir pour éviter les erreurs (drop out segmentation) : 
+
+- `nnUNet_n_proc_DA=1` - 1 worker pour préchargement
+- `OMP_NUM_THREADS=16` - 16 threads pour calculs CPU
+- `nnUNet_compile=false` - Désactive JIT 
+
+
+
 
 ### 6. Autres fichiers
 - `.gitignore`
