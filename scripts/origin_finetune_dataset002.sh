@@ -8,33 +8,20 @@
 
 set -e  # Arrêt en cas d'erreur
 
-# Définir PROJ_HOME si non défini (chemin vers le répertoire du projet)
-if [ -z "$PROJ_HOME" ]; then
-    # Obtenir le chemin absolu du script
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # PROJ_HOME est 2 niveaux au-dessus (data/scripts -> data -> projet)
-    export PROJ_HOME="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    echo "⚠ PROJ_HOME non défini, utilisation de: $PROJ_HOME"
-fi
-
-# Inclure les commandes nnUNetv2 dans le chemin
-export PATH=$HOME/.local/bin:$PATH
-echo "PATH = $PATH"
-
 ################################################################################
 # PARAMÈTRES CONFIGURABLES
 ################################################################################
 
 # Nombre d'epochs à entraîner (défaut: 1000 pour nnU-Net)
 # Vous pouvez réduire ce nombre pour des tests rapides (ex: 100)
-NUM_EPOCHS="${NUM_EPOCHS:-20}"
+NUM_EPOCHS="${NUM_EPOCHS:-1}"
 
 # Liste des folds à entraîner (défaut: tous les folds 0-4)
 # Exemples d'utilisation:
 #   - Entraîner seulement le fold 0: FOLDS_TO_TRAIN="0"
 #   - Entraîner les folds 0 et 1: FOLDS_TO_TRAIN="0 1"
 #   - Entraîner tous les folds: FOLDS_TO_TRAIN="0 1 2 3 4"
-FOLDS_TO_TRAIN="${FOLDS_TO_TRAIN:-4}"
+FOLDS_TO_TRAIN="${FOLDS_TO_TRAIN:-0}"
 
 ################################################################################
 
@@ -87,19 +74,19 @@ echo "  Note: Cette étape peut prendre plusieurs minutes"
 echo "  Utilisation de ResEncL (~24GB VRAM) - Compatible avec votre GPU 80GB"
 
 # Vérifier si le prétraitement a déjà été fait avec ResEncL
-#if [ -f "$nnUNet_preprocessed/Dataset002_MSLesSeg_FLAIR/nnUNetResEncUNetLPlans.json" ]; then
-#    echo "  Dataset002 déjà prétraité avec ResEncL. Voulez-vous le refaire? (y/N)"
-#    read -r response
-#    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-#        echo "  Lancement du prétraitement avec ResEncL..."
-#        nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL -c 3d_fullres --verify_dataset_integrity
-#    else
-#        echo "  Prétraitement existant conservé."
-#    fi
-#else
-echo "  Lancement du prétraitement avec ResEncL..."
-nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL -c 3d_fullres --verify_dataset_integrity
-#fi
+if [ -f "$nnUNet_preprocessed/Dataset002_MSLesSeg_FLAIR/nnUNetResEncUNetLPlans.json" ]; then
+    echo "  Dataset002 déjà prétraité avec ResEncL. Voulez-vous le refaire? (y/N)"
+    read -r response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        echo "  Lancement du prétraitement avec ResEncL..."
+        nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL --verify_dataset_integrity
+    else
+        echo "  Prétraitement existant conservé."
+    fi
+else
+    echo "  Lancement du prétraitement avec ResEncL..."
+    nnUNetv2_plan_and_preprocess -d 002 -pl nnUNetPlannerResEncL --verify_dataset_integrity
+fi
 
 # 4. Fine-tuning avec transfer learning (ResEncL + poids de Dataset004)
 echo ""
@@ -127,21 +114,18 @@ for fold in $FOLDS_TO_TRAIN; do
     if [ ! -f "$CHECKPOINT" ]; then
         echo "  ⚠ Checkpoint non trouvé pour fold $fold: $CHECKPOINT"
         echo "  → Entraînement depuis zéro pour ce fold"
-        $PROJ_HOME/data/scripts/run_nnunet_train_safe.sh \
-            nnUNetv2_train 002 3d_fullres $fold \
-	    -tr nnUNetTrainer_20epochs \
+        nnUNetv2_train 002 3d_fullres $fold \
+            -tr nnUNetTrainerResEncUNetL \
             -p nnUNetResEncUNetLPlans \
-	    -device cuda \
+            --num_epochs $NUM_EPOCHS \
             --npz
-
     else
         echo "  ✓ Utilisation du checkpoint: $CHECKPOINT"
-        $PROJ_HOME/data/scripts/run_nnunet_train_safe.sh \
-            nnUNetv2_train 002 3d_fullres $fold \
-	    -tr nnUNetTrainer_20epochs \
+        nnUNetv2_train 002 3d_fullres $fold \
+            -tr nnUNetTrainerResEncUNetL \
             -p nnUNetResEncUNetLPlans \
             -pretrained_weights "$CHECKPOINT" \
-	    -device cuda \
+            --num_epochs $NUM_EPOCHS \
             --npz
     fi
 
@@ -152,9 +136,9 @@ echo ""
 echo "  ✓ Tous les folds sélectionnés ont été entraînés ($NUM_FOLDS/$NUM_FOLDS)"
 
 # 5. Sélection de la meilleure configuration
-#echo ""
-#echo "[5/5] Sélection de la meilleure configuration..."
-#nnUNetv2_find_best_configuration 002 -c 3d_fullres -tr nnUNetTrainerResEncUNetL -p nnUNetResEncUNetLPlans
+echo ""
+echo "[5/5] Sélection de la meilleure configuration..."
+nnUNetv2_find_best_configuration 002 -c 3d_fullres -tr nnUNetTrainerResEncUNetL -p nnUNetResEncUNetLPlans
 
 echo ""
 echo "=========================================="
@@ -167,9 +151,8 @@ echo "  ✓ Transfer learning activé depuis Dataset004"
 echo "  ✓ 5 folds entraînés"
 echo ""
 echo "Les modèles entraînés sont dans:"
-echo "  $nnUNet_results/Dataset002_MSLesSeg_FLAIR/nnUNetTrainer_20epochs__nnUNetResEncUNetLPlans__3d_fullres/"
+echo "  $nnUNet_results/Dataset002_MSLesSeg_FLAIR/nnUNetTrainerResEncUNetL__nnUNetResEncUNetLPlans__3d_fullres/"
 echo ""
 echo "Pour lancer l'inférence, utilisez le script: inference_dataset002.sh"
 echo "  (Pensez à adapter le script pour utiliser ResEncL si nécessaire)"
 echo ""
-
